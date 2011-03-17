@@ -1,0 +1,17 @@
+﻿<UserControl x:Class="WeatherWidget.MainPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+    Width="400" Height="300">
+    <Grid x:Name="LayoutRoot" Background="White" >
+        <StackPanel>
+            <TextBlock Text="Choose city: " />
+            <ComboBox x:Name="CityComboBox" SelectedIndex="0">
+                <ComboBoxItem Content="Moscow" />
+                <ComboBoxItem Content="London" />
+            </ComboBox>
+            <Button Content="Subscribe on current weather" Click="Subscribe_Click" x:Name="SubscribeButton" IsEnabled="False" />
+            <TextBlock Text="Temperature: " />
+            <TextBox x:Name="Temperature" Width="300" HorizontalAlignment="Left" />
+        </StackPanel>
+    </Grid>
+</UserControl>
