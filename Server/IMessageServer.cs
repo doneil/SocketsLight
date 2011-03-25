@@ -53,6 +53,15 @@ namespace Witcraft.SocketsLight.Server
         void SendMessageToClient(Guid clientId, Message message);
 
         /// <summary>
+        /// Sends a raw, unserialized string to a client.  Converts the string to a UTF8 byte array before sending.
+        /// </summary>
+        /// <param name="clientId">
+        /// </param>
+        /// <param name="message">
+        /// </param>
+        void SendUTF8StringToClient(Guid clientId, string messagestring);
+
+        /// <summary>
         /// Start listnening for incoming messages.
         /// </summary>
         void Start();
