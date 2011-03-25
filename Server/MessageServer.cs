@@ -1,4 +1,4 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="MessageServer.cs" company="Alexey Zakharov">
 //   This file is part of SocketsLight Framework.
 //
@@ -18,7 +18,13 @@
 // <summary>
 //   Recieves and cast messages.
 // </summary>
+//
+//
+// History:
+// March 25, 2011 - Dan O'Neil - Added a fix for a Null Reference when server is shutting down.
+//                             - Added a new method to send raw strings to clients.
 // --------------------------------------------------------------------------------------------------------------------
+
 
 namespace Witcraft.SocketsLight.Server
 {
@@ -28,6 +34,8 @@ namespace Witcraft.SocketsLight.Server
     using System.Net;
     using System.Net.Sockets;
     using System.IO;
+    using System.Text;
+    using System.Diagnostics;
 
     /// <summary>
     /// Recieves and send messages.
@@ -67,6 +75,22 @@ namespace Witcraft.SocketsLight.Server
             this.listener = new TcpListener(address, port);
             this.messageSerializer = messageSerializer;
         }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="MessageServer"/> class.
+        /// </summary>
+        /// <remarks>
+        /// This constructor is used for raw bytes, no serialization.
+        /// </remarks>
+        /// <param name="address">
+        /// </param>
+        /// <param name="port">
+        /// </param>
+        public MessageServer(IPAddress address, int port)
+        {
+            this.listener = new TcpListener(address, port);
+        }
+
 
         /// <summary>
         /// Occurs when new client has connected
@@ -109,6 +133,43 @@ namespace Witcraft.SocketsLight.Server
                 messageByteList.Add(1);
 
                 args.SetBuffer(messageByteList.ToArray(), 0, messageByteList.Count);
+
+                try
+                {
+                    client.TcpClient.Client.SendAsync(args);
+                }
+                catch (Exception)
+                {
+                    this.clientRegistry.Remove(client.ID);
+                    client.TcpClient.Close();
+                    this.OnClientDisconnected(client.ID);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends a raw, unserialized string to a client.
+        /// </summary>
+        /// <remarks>
+        /// Converts the string to a UTF8 byte array before sending.
+        /// </remarks>
+        /// <param name="clientId">
+        /// </param>
+        /// <param name="message">
+        /// </param>
+        public void SendUTF8StringToClient(Guid clientId, string messagestring)
+        {
+            Client client = this.clientRegistry.GetById(clientId);
+            System.Text.UTF8Encoding encoding = new System.Text.UTF8Encoding();
+
+            // Get the byte array
+            byte[] straightBytes = encoding.GetBytes(messagestring);
+
+            if (client != null)
+            {
+                var args = new SocketAsyncEventArgs();
+
+                args.SetBuffer(straightBytes, 0, straightBytes.Length);
 
                 try
                 {
@@ -181,6 +242,14 @@ namespace Witcraft.SocketsLight.Server
             var state = (ClientMessageReceivedState)ar.AsyncState;
             try
             {
+                // 3/25/11 Dan O'Neil - If a client was connected to a server, and you tried to stop the server, this was causing a "hang".
+                // Added this null check for a quicker server close.
+                if (state.Client.TcpClient.Client == null)
+                {
+                    Debug.WriteLine("Could not find a client, leaving ClientMessageReceived");
+                    return;
+                }
+
                 int bytesRead = state.Client.TcpClient.Client.EndReceive(ar);
 
                 if (bytesRead > 0)
@@ -222,9 +291,11 @@ namespace Witcraft.SocketsLight.Server
 
             this.BeginReceiveClientMessages(
                 new ClientMessageReceivedState
-                    {
-                        MessagePacket = new byte[1024], SerializedMessage = new List<byte>(), Client = client 
-                    });
+                {
+                    MessagePacket = new byte[1024],
+                    SerializedMessage = new List<byte>(),
+                    Client = client
+                });
 
             this.clientRegistry.Add(client);
 
